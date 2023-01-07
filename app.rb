@@ -6,6 +6,7 @@ Mongoid.load!(File.join(File.dirname(__FILE__), 'config', 'mongoid.yml'))
 class User
   include Mongoid::Document
   store_in collection: "users"
+  embeds_many :persons, class_name: "Person"
 
   field :name, type: String
   field :time_zone, type: String
@@ -13,13 +14,12 @@ class User
   validates :name, presence: true
   validates :time_zone, presence: true
 
-  has_many :persons
 end
 
 
 class Person
   include Mongoid::Document
-  store_in collection: "persons"
+  embedded_in :user, class_name: "User"
 
   field :name, type: String
   field :pronoun_subject, type: String
@@ -31,7 +31,6 @@ class Person
   validates :name, presence: true
   validates :time_zone, presence: true
 
-  belongs_to :user
 end
 
 
@@ -59,9 +58,10 @@ get '/persons' do
   Person.all.to_json
 end
 
-post '/persons' do
-    person = Person.new(params[:person])
-    if person.save
+post '/users/:user_id/persons' do |user_id|
+    user = User.find(user_id)
+    person = user.persons.create(params[:person])
+    if person
       person.to_json
       status 201
     else
@@ -71,7 +71,8 @@ post '/persons' do
 end
 
 # All the Persons that belong to a User
-get '/persons/:user_id' do |user_id|
-  persons = Person.where(user_id: user_id)
+get '/users/:user_id/persons' do |user_id|
+  user = User.find(user_id)
+  persons = user.persons
   persons.to_json
 end
